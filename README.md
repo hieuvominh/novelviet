@@ -8,7 +8,8 @@ A modern, SEO-optimized Next.js application built with React 19, TypeScript, and
 - **React:** 19.2.3 with React Compiler
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS v4
-- **Backend:** Supabase (configured)
+- **Backend:** Supabase (PostgreSQL + Auth + RLS)
+- **Database:** PostgreSQL with pg_cron, pg_trgm extensions
 - **Linting:** ESLint
 
 ## 📁 Project Structure
@@ -168,29 +169,52 @@ export const metadata = generateSEO({
 ## 🚦 Next Steps
 
 ### Recommended Order:
-1. **Configure Supabase:**
-   - Set up your Supabase project
-   - Add credentials to `.env.local`
-   - Define database schema in `src/types/database.types.ts`
+1. **Setup Database:**
+   - Review `supabase/DATABASE_DESIGN.md` for complete schema documentation
+   - Follow `supabase/SETUP_GUIDE.md` to apply migrations
+   - Run migrations in order: `001_core_schema.sql` → `002_functions_triggers.sql` → `003_rls_policies.sql` → `004_scheduled_jobs.sql`
+   - Configure admin user as documented in setup guide
 
-2. **Update Site Config:**
-   - Edit `src/config/site.ts` with your site details
-   - Update SEO defaults in `src/lib/utils/seo.ts`
+2. **Configure Environment:**
+   - Set up your Supabase project credentials in `.env.local`
+   - Database types are already generated in `src/types/database.types.ts`
+   - Update `src/config/site.ts` with your site details
 
-3. **Create UI Components:**
-   - Add components to `src/components/ui/`
-   - Build theme toggle component
-   - Create layout components (header, footer)
+3. **Build Features:**
+   - Create novel listing page with SEO-optimized slugs
+   - Implement chapter reading pages
+   - Add search with trigram fuzzy matching
+   - Build admin CMS using RLS policies
+   - Implement view counting (automatic via triggers)
 
-4. **Build Features:**
-   - Create feature directories in `src/app/`
-   - Use `generateSEO()` for each page
-   - Implement authentication flows
+4. **Implement Crawler:**
+   - Use anti-duplicate functions from migration 002
+   - Check `normalize_text()` before inserting novels
+   - Verify `content_hash` to detect duplicate chapters
+   - Follow crawling examples in DATABASE_DESIGN.md
 
-5. **Database & Auth:**
-   - Create Supabase tables
-   - Set up authentication
-   - Define Row Level Security policies
+5. **Performance Optimization:**
+   - Monitor materialized view refresh (novel_statistics)
+   - Review scheduled job performance in 004_scheduled_jobs.sql
+   - Optimize indexes based on query patterns
+
+## 📊 Database Architecture
+
+The application uses a comprehensive PostgreSQL schema designed for:
+- **SEO-first approach:** Slug-based routing with anti-collision
+- **High performance:** Optimized view counting with batch aggregation
+- **Anti-duplicate:** 4-layer duplicate detection (constraints, normalized text, fuzzy match, content hash)
+- **Security:** Row Level Security with 3-tier access (anonymous, authenticated, admin)
+
+### Key Tables:
+- `authors` - Author profiles with SEO slugs
+- `novels` - Novel metadata with denormalized statistics
+- `chapters` - Chapter content with automatic slug generation
+- `genres` - Hierarchical genre taxonomy
+- `chapter_views` - High-volume view tracking (batched)
+- `bookmarks`, `reading_progress`, `ratings` - User interactions
+
+See `supabase/README.md` for complete database documentation and `supabase/ER_DIAGRAM.md` for visual schema.
 
 ## 🧪 Development
 
@@ -215,10 +239,20 @@ npm run lint
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [Project Documentation](./supabase/README.md) - Database design overview
+- [Setup Guide](./supabase/SETUP_GUIDE.md) - Step-by-step implementation
+- [ER Diagram](./supabase/ER_DIAGRAM.md) - Visual schema reference
+
+## 🗂️ Documentation
+
+- **Database Design:** See `supabase/DATABASE_DESIGN.md` for comprehensive schema documentation (6,500+ words)
+- **Setup Guide:** Follow `supabase/SETUP_GUIDE.md` for step-by-step migration instructions
+- **ER Diagram:** Visual reference in `supabase/ER_DIAGRAM.md`
+- **Project Structure:** Details in `PROJECT-STRUCTURE.md`
 
 ---
 
-Built with ❤️ using the latest web technologies
+Built with ❤️ for Vietnamese novel readers
 
 
 ## Deploy on Vercel
