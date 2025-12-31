@@ -76,20 +76,45 @@ export function CategorySection({
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Category Tabs */}
-        <div className="flex items-center justify-center gap-6 md:gap-8 mb-6 overflow-x-auto pb-2">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => handleCategoryChange(category.id)}
-              className={`text-base md:text-lg whitespace-nowrap transition-all ${
-                activeCategory === category.id
-                  ? "text-white font-bold text-lg md:text-xl scale-110"
-                  : "text-white/70 font-normal hover:text-white"
-              }`}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-center gap-6 md:gap-8 overflow-x-auto pb-2 flex-1">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryChange(category.id)}
+                className={`text-base md:text-lg whitespace-nowrap transition-all cursor-pointer ${
+                  activeCategory === category.id
+                    ? "text-white font-bold text-lg md:text-xl scale-110"
+                    : "text-white/70 font-normal hover:text-white"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+
+          {/* View More Link */}
+          <Link
+            href={`/the-loai/${
+              categories.find((c) => c.id === activeCategory)?.slug || ""
+            }`}
+            className="text-white/90 hover:text-white text-sm md:text-base flex items-center gap-1 whitespace-nowrap ml-4 cursor-pointer"
+          >
+            Xem thêm
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {category.name}
-            </button>
-          ))}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </Link>
         </div>
 
         {/* Novel Grid with Navigation */}
@@ -98,7 +123,7 @@ export function CategorySection({
           {totalPages > 1 && (
             <button
               onClick={handlePrev}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors"
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
               aria-label="Previous"
             >
               <svg
@@ -123,7 +148,7 @@ export function CategorySection({
               <Link
                 key={novel.id}
                 href={`/truyen/${novel.slug}`}
-                className="group"
+                className="group cursor-pointer"
               >
                 <div className="relative aspect-[3/4] rounded overflow-hidden shadow-md hover:shadow-xl transition-shadow">
                   <Image
@@ -154,7 +179,7 @@ export function CategorySection({
           {totalPages > 1 && (
             <button
               onClick={handleNext}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors"
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
               aria-label="Next"
             >
               <svg
@@ -181,7 +206,7 @@ export function CategorySection({
               <button
                 key={index}
                 onClick={() => setCurrentPage(index)}
-                className={`h-2 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-all cursor-pointer ${
                   index === currentPage
                     ? "bg-primary w-8"
                     : "bg-gray-300 dark:bg-gray-600 w-2"

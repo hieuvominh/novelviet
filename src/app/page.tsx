@@ -546,7 +546,7 @@ export default async function Home() {
       <HeroSlider novels={heroNovels} />
 
       {/* Hot Today Section */}
-      <HorizontalSection title="Hot Hôm Nay" href="/dang-ra">
+      <HorizontalSection title="Hot Hôm Nay" href="/hot-hom-nay">
         {hotNovelsList.map((novel) => (
           <NovelCardCompact
             key={novel.id}
@@ -566,7 +566,7 @@ export default async function Home() {
                 Siêu Phẩm Đang Hot
               </h2>
               <Link
-                href="/dang-ra"
+                href="/sieu-pham"
                 className="text-primary hover:underline text-sm md:text-base flex items-center gap-1"
               >
                 Xem thêm

@@ -10,6 +10,14 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Primary Color */
+  --color-primary: #3b82f6;
+  /* Sepia/Paper Reading Theme */
+  --color-paper: #F4ECD8;
+  --color-paper-secondary: #E8DECA;
+  --color-brown: #5F4B32;
+  --color-brown-light: #8C7B66;
+  --color-clay: #D78A56;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +34,50 @@ body {
 }
 
 
+/* Fullscreen Reading Mode */
+
+.fullscreen-reading:fullscreen {
+  background: #fafafa;
+}
+
+.fullscreen-reading:fullscreen.dark {
+  background: #0a0a0a;
+}
+
+
+/* Webkit prefix for Safari */
+
+.fullscreen-reading:-webkit-full-screen {
+  background: #fafafa;
+}
+
+.fullscreen-reading:-webkit-full-screen.dark {
+  background: #0a0a0a;
+}
+
+
+/* Mozilla prefix for Firefox */
+
+.fullscreen-reading:-moz-full-screen {
+  background: #fafafa;
+}
+
+.fullscreen-reading:-moz-full-screen.dark {
+  background: #0a0a0a;
+}
+
+
+/* MS prefix for IE/Edge */
+
+.fullscreen-reading:-ms-fullscreen {
+  background: #fafafa;
+}
+
+.fullscreen-reading:-ms-fullscreen.dark {
+  background: #0a0a0a;
+}
+
+
 /* Hide scrollbar for horizontal scroll sections */
 
 .scrollbar-hide {
@@ -35,4 +87,30 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+
+/* View toggle animations */
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* Respect user preference for reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

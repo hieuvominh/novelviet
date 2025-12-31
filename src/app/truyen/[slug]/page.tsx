@@ -381,10 +381,13 @@ export default async function NovelPage({
                   />
                 </div>
                 <div className="mt-4 space-y-2">
-                  <button className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium">
+                  <Link
+                    href={`/truyen/${novel.slug}/1`}
+                    className="block w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-center cursor-pointer"
+                  >
                     Đọc từ đầu
-                  </button>
-                  <button className="w-full px-4 py-2 border rounded-lg hover:bg-accent transition-colors font-medium">
+                  </Link>
+                  <button className="w-full px-4 py-2 border rounded-lg hover:bg-accent transition-colors font-medium cursor-pointer">
                     Đánh dấu
                   </button>
                 </div>

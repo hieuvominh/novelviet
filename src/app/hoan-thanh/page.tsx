@@ -3,6 +3,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { generateSEO } from "@/lib/utils/seo";
 import { NovelCard } from "@/components/novels/novel-card";
+import { CategoryContent } from "@/components/category/category-content";
+import { CategoryPagination } from "@/components/category/category-pagination";
+import { CategoryEmptyState } from "@/components/category/category-empty-state";
 
 // Revalidate every 10 minutes
 export const revalidate = 600;
@@ -11,14 +14,59 @@ interface PageProps {
   searchParams: { page?: string };
 }
 
+// Dummy data generator for testing
+function generateDummyCompletedNovels(count: number) {
+  const novels = [];
+  const statuses = ["completed"] as const;
+
+  for (let i = 1; i <= count; i++) {
+    novels.push({
+      id: `completed-novel-${i}`,
+      title: `Truyện Hoàn Thành Số ${i}`,
+      slug: `truyen-hoan-thanh-so-${i}`,
+      description: `Đây là mô tả cho truyện hoàn thành số ${i}. Một câu chuyện đã kết thúc trọn vẹn với những tình tiết hấp dẫn và cái kết viên mãn...`,
+      cover_url: `https://picsum.photos/seed/completed-${i}/400/600`,
+      status: statuses[0],
+      total_chapters: Math.floor(Math.random() * 2000) + 500,
+      view_count_total: Math.floor(Math.random() * 50000000) + 1000000,
+      rating_average: 4.0 + Math.random() * 1.0,
+      rating_count: Math.floor(Math.random() * 10000) + 1000,
+      bookmark_count: Math.floor(Math.random() * 20000) + 500,
+      last_chapter_at: new Date(
+        Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      author: {
+        name: `Tác Giả ${i}`,
+        slug: `tac-gia-${i}`,
+      },
+    });
+  }
+
+  return novels;
+}
+
 async function getCompletedNovels(page: number = 1, perPage: number = 24) {
+  // Return dummy data for testing
+  const allNovels = generateDummyCompletedNovels(120);
+  const offset = (page - 1) * perPage;
+
+  // Sort by view_count_total (most popular first)
+  const sortedNovels = allNovels.sort(
+    (a, b) => b.view_count_total - a.view_count_total
+  );
+
+  const novels = sortedNovels.slice(offset, offset + perPage);
+
+  return { novels, total: sortedNovels.length };
+
+  /* Real Supabase code - uncomment when ready
   const supabase = await createClient();
   const offset = (page - 1) * perPage;
 
   const { data, error, count } = await supabase
     .from("novels")
     .select(
-      `
+      \`
       id,
       title,
       slug,
@@ -32,7 +80,7 @@ async function getCompletedNovels(page: number = 1, perPage: number = 24) {
       bookmark_count,
       last_chapter_at,
       authors!inner(name, slug)
-    `,
+    \`,
       { count: "exact" }
     )
     .eq("is_published", true)
@@ -61,6 +109,7 @@ async function getCompletedNovels(page: number = 1, perPage: number = 24) {
     );
 
   return { novels, total: count || 0 };
+  */
 }
 
 export async function generateMetadata({
@@ -147,70 +196,21 @@ export default async function CompletedNovelsPage({ searchParams }: PageProps) {
         {/* Novel Grid */}
         {novels.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-              {novels.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
+            <CategoryContent novels={novels} categoryName="Hoàn Thành" />
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/hoan-thanh?page=${page - 1}`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    ← Trang trước
-                  </Link>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-
-                    return (
-                      <Link
-                        key={pageNum}
-                        href={`/hoan-thanh?page=${pageNum}`}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          page === pageNum
-                            ? "bg-primary text-primary-foreground font-medium"
-                            : "border hover:bg-accent"
-                        }`}
-                      >
-                        {pageNum}
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {page < totalPages && (
-                  <Link
-                    href={`/hoan-thanh?page=${page + 1}`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    Trang sau →
-                  </Link>
-                )}
+              <div className="mt-8">
+                <CategoryPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  baseUrl="/hoan-thanh"
+                />
               </div>
             )}
           </>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Chưa có truyện hoàn thành nào.
-            </p>
-          </div>
+          <CategoryEmptyState />
         )}
 
         {/* SEO Content Block */}

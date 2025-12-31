@@ -3,6 +3,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { generateSEO } from "@/lib/utils/seo";
 import { NovelCard } from "@/components/novels/novel-card";
+import { CategoryContent } from "@/components/category/category-content";
+import { CategoryPagination } from "@/components/category/category-pagination";
+import { CategoryEmptyState } from "@/components/category/category-empty-state";
 
 // Revalidate every 10 minutes
 export const revalidate = 600;
@@ -11,14 +14,62 @@ interface PageProps {
   searchParams: { page?: string };
 }
 
+// Dummy data generator for testing
+function generateDummyOngoingNovels(count: number) {
+  const novels = [];
+  const statuses = ["ongoing"] as const;
+
+  for (let i = 1; i <= count; i++) {
+    novels.push({
+      id: `ongoing-novel-${i}`,
+      title: `Truyện Đang Ra Số ${i}`,
+      slug: `truyen-dang-ra-so-${i}`,
+      description: `Đây là mô tả cho truyện đang ra số ${i}. Một câu chuyện hấp dẫn đang được cập nhật thường xuyên với những tình tiết bất ngờ...`,
+      cover_url: `https://picsum.photos/seed/ongoing-${i}/400/600`,
+      status: statuses[0],
+      total_chapters: Math.floor(Math.random() * 1500) + 100,
+      view_count_total: Math.floor(Math.random() * 10000000),
+      view_count_daily: Math.floor(Math.random() * 50000) + 5000,
+      rating_average: 3.5 + Math.random() * 1.5,
+      rating_count: Math.floor(Math.random() * 5000),
+      bookmark_count: Math.floor(Math.random() * 10000),
+      last_chapter_at: new Date(
+        Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      author: {
+        name: `Tác Giả ${i}`,
+        slug: `tac-gia-${i}`,
+      },
+    });
+  }
+
+  return novels;
+}
+
 async function getOngoingNovels(page: number = 1, perPage: number = 24) {
+  // Return dummy data for testing
+  const allNovels = generateDummyOngoingNovels(100);
+  const offset = (page - 1) * perPage;
+
+  // Sort by last_chapter_at (most recent first)
+  const sortedNovels = allNovels.sort(
+    (a, b) =>
+      new Date(b.last_chapter_at).getTime() -
+      new Date(a.last_chapter_at).getTime()
+  );
+
+  const novels = sortedNovels.slice(offset, offset + perPage);
+
+  return { novels, total: sortedNovels.length };
+
+  /* Real Supabase code - uncomment when ready
   const supabase = await createClient();
   const offset = (page - 1) * perPage;
 
   const { data, error, count } = await supabase
     .from("novels")
     .select(
-      `
+      \`
       id,
       title,
       slug,
@@ -33,7 +84,7 @@ async function getOngoingNovels(page: number = 1, perPage: number = 24) {
       bookmark_count,
       last_chapter_at,
       authors!inner(name, slug)
-    `,
+    \`,
       { count: "exact" }
     )
     .eq("is_published", true)
@@ -62,6 +113,7 @@ async function getOngoingNovels(page: number = 1, perPage: number = 24) {
     );
 
   return { novels, total: count || 0 };
+  */
 }
 
 export async function generateMetadata({
@@ -148,68 +200,21 @@ export default async function OngoingNovelsPage({ searchParams }: PageProps) {
         {/* Novel Grid */}
         {novels.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-              {novels.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
+            <CategoryContent novels={novels} categoryName="Đang Ra" />
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/dang-ra?page=${page - 1}`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    ← Trang trước
-                  </Link>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-
-                    return (
-                      <Link
-                        key={pageNum}
-                        href={`/dang-ra?page=${pageNum}`}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          page === pageNum
-                            ? "bg-primary text-primary-foreground font-medium"
-                            : "border hover:bg-accent"
-                        }`}
-                      >
-                        {pageNum}
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {page < totalPages && (
-                  <Link
-                    href={`/dang-ra?page=${page + 1}`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    Trang sau →
-                  </Link>
-                )}
+              <div className="mt-8">
+                <CategoryPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  baseUrl="/dang-ra"
+                />
               </div>
             )}
           </>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Chưa có truyện đang ra nào.</p>
-          </div>
+          <CategoryEmptyState />
         )}
 
         {/* SEO Content Block */}

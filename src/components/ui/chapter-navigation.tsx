@@ -2,44 +2,31 @@ import Link from "next/link";
 
 interface ChapterNavigationProps {
   novelSlug: string;
-  currentChapterNumber: number;
-  previousChapter?: {
-    number: number;
-    title: string;
-  } | null;
-  nextChapter?: {
-    number: number;
-    title: string;
-  } | null;
-  variant?: "top" | "bottom";
+  currentChapter: number;
+  totalChapters: number;
 }
 
 export function ChapterNavigation({
   novelSlug,
-  currentChapterNumber,
-  previousChapter,
-  nextChapter,
-  variant = "top",
+  currentChapter,
+  totalChapters,
 }: ChapterNavigationProps) {
-  const isTop = variant === "top";
+  const hasPrevious = currentChapter > 1;
+  const hasNext = currentChapter < totalChapters;
 
-  if (isTop) {
-    return (
-      <nav
-        className="flex items-center justify-between gap-4 p-4 rounded-lg border bg-card"
-        aria-label="Chapter navigation"
-      >
+  return (
+    <div className="flex items-center gap-4 py-8 mb-20">
+      {/* Previous Chapter */}
+      {hasPrevious ? (
         <Link
-          href={`/truyen/${novelSlug}`}
-          className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
-          aria-label="Back to chapter list"
+          href={`/truyen/${novelSlug}/chuong-${currentChapter - 1}`}
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-900 dark:text-gray-100 font-medium"
         >
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
-            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -48,99 +35,66 @@ export function ChapterNavigation({
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Danh sách chương
-        </Link>
-
-        <div className="flex items-center gap-2">
-          {previousChapter ? (
-            <Link
-              href={`/truyen/${novelSlug}/chuong-${previousChapter.number}`}
-              className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors text-sm"
-              aria-label={`Previous chapter: ${previousChapter.title}`}
-            >
-              ← Chương trước
-            </Link>
-          ) : (
-            <button
-              disabled
-              className="px-4 py-2 border rounded-lg opacity-50 cursor-not-allowed text-sm"
-              aria-label="No previous chapter"
-            >
-              ← Chương trước
-            </button>
-          )}
-
-          {nextChapter ? (
-            <Link
-              href={`/truyen/${novelSlug}/chuong-${nextChapter.number}`}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
-              aria-label={`Next chapter: ${nextChapter.title}`}
-            >
-              Chương sau →
-            </Link>
-          ) : (
-            <button
-              disabled
-              className="px-4 py-2 bg-muted text-muted-foreground rounded-lg cursor-not-allowed text-sm"
-              aria-label="No next chapter"
-            >
-              Chương sau →
-            </button>
-          )}
-        </div>
-      </nav>
-    );
-  }
-
-  // Bottom variant with more detail
-  return (
-    <nav
-      className="grid grid-cols-1 md:grid-cols-3 gap-4"
-      aria-label="Chapter navigation"
-    >
-      {previousChapter ? (
-        <Link
-          href={`/truyen/${novelSlug}/chuong-${previousChapter.number}`}
-          className="p-4 border rounded-lg hover:bg-accent transition-colors"
-          aria-label={`Previous chapter: ${previousChapter.title}`}
-        >
-          <div className="text-xs text-muted-foreground mb-1">Chương trước</div>
-          <div className="font-medium line-clamp-2">
-            C{previousChapter.number}: {previousChapter.title}
-          </div>
+          Chương trước
         </Link>
       ) : (
-        <div className="p-4 border rounded-lg opacity-50">
-          <div className="text-xs text-muted-foreground mb-1">Chương trước</div>
-          <div className="font-medium">Không có</div>
+        <div className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Chương trước
         </div>
       )}
 
-      <Link
-        href={`/truyen/${novelSlug}`}
-        className="p-4 border rounded-lg hover:bg-accent transition-colors text-center"
-        aria-label="Back to chapter list"
-      >
-        <div className="font-medium">Danh sách chương</div>
-      </Link>
-
-      {nextChapter ? (
+      {/* Next Chapter */}
+      {hasNext ? (
         <Link
-          href={`/truyen/${novelSlug}/chuong-${nextChapter.number}`}
-          className="p-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          aria-label={`Next chapter: ${nextChapter.title}`}
+          href={`/truyen/${novelSlug}/chuong-${currentChapter + 1}`}
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-900 dark:text-gray-100 font-medium"
         >
-          <div className="text-xs opacity-90 mb-1">Chương sau</div>
-          <div className="font-medium line-clamp-2">
-            C{nextChapter.number}: {nextChapter.title}
-          </div>
+          Chương sau
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
         </Link>
       ) : (
-        <div className="p-4 bg-muted text-muted-foreground rounded-lg">
-          <div className="text-xs mb-1">Chương sau</div>
-          <div className="font-medium">Chưa có</div>
+        <div className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50">
+          Chương sau
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
         </div>
       )}
-    </nav>
+    </div>
   );
 }

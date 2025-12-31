@@ -105,7 +105,7 @@ export function HeroSlider({ novels }: HeroSliderProps) {
 
           {/* Previous Slide */}
           <div
-            className="hidden md:block relative w-65 lg:w-80 h-72 lg:h-88 cursor-pointer transition-all duration-300 hover:scale-105"
+            className="hidden md:block relative w-75 lg:w-90 h-80 lg:h-96 cursor-pointer transition-all duration-300 hover:scale-105"
             onClick={() => goToSlide(getPrevIndex())}
           >
             <div className="relative w-full h-full rounded overflow-hidden shadow-lg opacity-60 blur-[2px] hover:opacity-80 hover:blur-[1px] transition-all">
@@ -212,7 +212,7 @@ export function HeroSlider({ novels }: HeroSliderProps) {
 
           {/* Next Slide */}
           <div
-            className="hidden md:block relative w-65 lg:w-80 h-72 lg:h-88 cursor-pointer transition-all duration-300 hover:scale-105"
+            className="hidden md:block relative w-75 lg:w-90 h-80 lg:h-96 cursor-pointer transition-all duration-300 hover:scale-105"
             onClick={() => goToSlide(getNextIndex())}
           >
             <div className="relative w-full h-full rounded overflow-hidden shadow-lg opacity-60 blur-[2px] hover:opacity-80 hover:blur-[1px] transition-all">
@@ -292,24 +292,6 @@ export function HeroSlider({ novels }: HeroSliderProps) {
               </svg>
             </button>
           </>
-        )}
-
-        {/* Dot Indicators */}
-        {novels.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-6">
-            {novels.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`h-2 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "bg-primary w-8"
-                    : "bg-muted-foreground/40 w-2 hover:bg-muted-foreground/60"
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
-          </div>
         )}
       </div>
     </section>

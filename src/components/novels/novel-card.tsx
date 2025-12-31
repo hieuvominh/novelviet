@@ -92,10 +92,10 @@ export function NovelCard({
   return (
     <Link
       href={`/truyen/${novel.slug}`}
-      className="group block overflow-hidden rounded-lg border bg-card hover:shadow-lg transition-shadow"
+      className="group block overflow-hidden rounded-lg border border-gray-400 bg-card hover:shadow-lg transition-shadow"
     >
       {/* Cover Image */}
-      <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted">
+      <div className="relative aspect-[0.9] w-full overflow-hidden bg-muted">
         <Image
           src={coverUrl}
           alt={novel.title}
@@ -112,27 +112,27 @@ export function NovelCard({
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <h3 className="font-bold text-base line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+      <div className="p-3">
+        <h3 className="font-semibold text-sm line-clamp-2 mb-1.5 group-hover:text-primary transition-colors">
           {novel.title}
         </h3>
 
-        <p className="text-sm text-muted-foreground mb-3">
+        <p className="text-xs text-muted-foreground mb-2">
           {novel.author.name}
         </p>
 
         {showDescription && novel.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
             {novel.description}
           </p>
         )}
 
         {/* Stats */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-0.5">
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -146,9 +146,9 @@ export function NovelCard({
               </svg>
               {novel.total_chapters}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-0.5">
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -170,8 +170,8 @@ export function NovelCard({
             </span>
           </div>
           {novel.rating_count > 0 && (
-            <span className="flex items-center gap-1 text-yellow-500 font-medium">
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <span className="flex items-center gap-0.5 text-yellow-500 font-medium">
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
               {formatRating(novel.rating_average)}

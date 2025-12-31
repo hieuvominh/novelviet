@@ -17,11 +17,18 @@ const geistMono = Geist_Mono({
 });
 
 // Generate SEO metadata for the root layout
-export const metadata: Metadata = generateSEO({
-  title: "Đọc truyện online - Truyện hay cập nhật nhanh nhất",
-  description:
-    "Đọc truyện online miễn phí. Hàng ngàn tác phẩm tiên hiệp, huyền huyễn, ngôn tình, kiếm hiệp cập nhật liên tục mỗi ngày.",
-});
+export const metadata: Metadata = {
+  ...generateSEO({
+    title: "Đọc truyện online - Truyện hay cập nhật nhanh nhất",
+    description:
+      "Đọc truyện online miễn phí. Hàng ngàn tác phẩm tiên hiệp, huyền huyễn, ngôn tình, kiếm hiệp cập nhật liên tục mỗi ngày.",
+  }),
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
+};
 
 export default function RootLayout({
   children,

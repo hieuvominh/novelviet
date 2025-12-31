@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/truyen/:slug/chuong-:chapterNumber",
+        destination: "/truyen/:slug/:chapterNumber",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

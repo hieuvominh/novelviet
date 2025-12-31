@@ -4,6 +4,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { generateSEO } from "@/lib/utils/seo";
 import { NovelCard } from "@/components/novels/novel-card";
+import { CategoryContent } from "@/components/category/category-content";
+import { CategoryPagination } from "@/components/category/category-pagination";
+import { CategoryEmptyState } from "@/components/category/category-empty-state";
 
 // Revalidate every 15 minutes
 export const revalidate = 900;
@@ -15,7 +18,85 @@ interface PageProps {
   searchParams: { sort?: SortOption; page?: string };
 }
 
+// Dummy genre data for testing
+const DUMMY_GENRES: Record<string, any> = {
+  "tien-hiep": {
+    id: "genre-1",
+    name: "Xianxia",
+    slug: "tien-hiep",
+    name_vi: "Tiên Hiệp",
+    description:
+      "Truyện tu tiên, tu đạo, thế giới huyền ảo phương Đông với các tu sĩ, pháp bảo và đấu pháp kịch tính.",
+    meta_description:
+      "Đọc truyện Tiên Hiệp hay nhất, cập nhật nhanh nhất. Hàng nghìn tác phẩm tu tiên, tu đạo hấp dẫn.",
+  },
+  "huyen-huyen": {
+    id: "genre-2",
+    name: "Fantasy",
+    slug: "huyen-huyen",
+    name_vi: "Huyền Huyễn",
+    description:
+      "Thế giới huyền ảo với ma pháp, dị năng, sinh vật thần thoại và những cuộc phiêu lưu kỳ ảo.",
+    meta_description:
+      "Truyện Huyền Huyễn hay, cập nhật liên tục. Khám phá thế giới phép thuật và phiêu lưu.",
+  },
+  "ngon-tinh": {
+    id: "genre-3",
+    name: "Romance",
+    slug: "ngon-tinh",
+    name_vi: "Ngôn Tình",
+    description:
+      "Truyện tình cảm lãng mạn, ngọt ngào với những câu chuyện về tình yêu, hôn nhân và gia đình.",
+    meta_description:
+      "Đọc truyện Ngôn Tình hay nhất 2025. Tình cảm lãng mạn, ngọt ngào, cập nhật mỗi ngày.",
+  },
+  "do-thi": {
+    id: "genre-4",
+    name: "Urban",
+    slug: "do-thi",
+    name_vi: "Đô Thị",
+    description:
+      "Cuộc sống thành thị hiện đại với những câu chuyện về công việc, tình yêu và cuộc sống đời thường.",
+    meta_description:
+      "Truyện Đô Thị hay, gần gũi với cuộc sống. Cập nhật nhanh, đa dạng thể loại.",
+  },
+  "kiem-hiep": {
+    id: "genre-5",
+    name: "Wuxia",
+    slug: "kiem-hiep",
+    name_vi: "Kiếm Hiệp",
+    description:
+      "Võ lâm giang hồ với các cao thủ, võ công, và nghĩa khí anh hùng.",
+    meta_description:
+      "Truyện Kiếm Hiệp kinh điển, cập nhật liên tục. Võ lâm giang hồ hấp dẫn.",
+  },
+  "khoa-huyen": {
+    id: "genre-6",
+    name: "Sci-Fi",
+    slug: "khoa-huyen",
+    name_vi: "Khoa Huyễn",
+    description:
+      "Thế giới tương lai với công nghệ tiên tiến, vũ trụ và những khám phá khoa học.",
+    meta_description:
+      "Truyện Khoa Huyễn hay nhất. Khám phá thế giới tương lai và công nghệ.",
+  },
+  fantasy: {
+    id: "genre-7",
+    name: "Fantasy",
+    slug: "fantasy",
+    name_vi: "Fantasy",
+    description:
+      "Thế giới kỳ ảo phương Tây với phép thuật, rồng, yêu tinh và những cuộc phiêu lưu sử thi.",
+    meta_description:
+      "Truyện Fantasy phương Tây hay nhất. Thế giới phép thuật và phiêu lưu kỳ ảo.",
+  },
+};
+
 async function getGenre(slug: string) {
+  // Return dummy data for testing
+  return DUMMY_GENRES[slug] || null;
+
+  /* Real Supabase code - uncomment when ready
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -29,6 +110,45 @@ async function getGenre(slug: string) {
   }
 
   return data;
+  */
+}
+
+// Dummy novel generator for testing
+function generateDummyNovels(count: number, genreId: string) {
+  const statuses = ["ongoing", "completed"] as const;
+  const novels = [];
+
+  for (let i = 1; i <= count; i++) {
+    const status = statuses[i % 2];
+    novels.push({
+      id: `novel-${genreId}-${i}`,
+      title: `${
+        DUMMY_GENRES[
+          Object.keys(DUMMY_GENRES).find(
+            (k) => DUMMY_GENRES[k].id === genreId
+          ) || ""
+        ]?.name_vi || "Truyện"
+      } Hay Số ${i}`,
+      slug: `truyen-hay-so-${i}`,
+      description: `Đây là mô tả cho truyện số ${i}. Một câu chuyện hấp dẫn với nhiều tình tiết bất ngờ...`,
+      cover_url: `https://picsum.photos/seed/${genreId}-${i}/400/600`,
+      status,
+      total_chapters: Math.floor(Math.random() * 2000) + 100,
+      view_count_total: Math.floor(Math.random() * 10000000),
+      view_count_daily: Math.floor(Math.random() * 50000),
+      rating_average: 3.5 + Math.random() * 1.5,
+      rating_count: Math.floor(Math.random() * 5000),
+      last_chapter_at: new Date(
+        Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      author: {
+        name: `Tác Giả ${i}`,
+        slug: `tac-gia-${i}`,
+      },
+    });
+  }
+
+  return novels;
 }
 
 async function getNovelsByGenre(
@@ -37,13 +157,41 @@ async function getNovelsByGenre(
   page: number = 1,
   perPage: number = 24
 ) {
+  // Return dummy data for testing
+  const allNovels = generateDummyNovels(100, genreId);
+  const offset = (page - 1) * perPage;
+
+  // Sort novels
+  let sortedNovels = [...allNovels];
+  switch (sort) {
+    case "hot":
+      sortedNovels.sort((a, b) => b.view_count_daily - a.view_count_daily);
+      break;
+    case "newest":
+      sortedNovels.sort(
+        (a, b) =>
+          new Date(b.last_chapter_at).getTime() -
+          new Date(a.last_chapter_at).getTime()
+      );
+      break;
+    case "completed":
+      sortedNovels = sortedNovels.filter((n) => n.status === "completed");
+      sortedNovels.sort((a, b) => b.view_count_total - a.view_count_total);
+      break;
+  }
+
+  const novels = sortedNovels.slice(offset, offset + perPage);
+
+  return { novels, total: sortedNovels.length };
+
+  /* Real Supabase code - uncomment when ready
   const supabase = await createClient();
   const offset = (page - 1) * perPage;
 
   let query = supabase
     .from("novels")
     .select(
-      `
+      \`
       id,
       title,
       slug,
@@ -57,7 +205,7 @@ async function getNovelsByGenre(
       rating_count,
       last_chapter_at,
       authors!inner(name, slug)
-    `,
+    \`,
       { count: "exact" }
     )
     .eq("is_published", true);
@@ -117,13 +265,15 @@ async function getNovelsByGenre(
     );
 
   return { novels, total: count || 0 };
+  */
 }
 
 export async function generateMetadata({
   params,
   searchParams,
 }: PageProps): Promise<Metadata> {
-  const genre = await getGenre(params.slug);
+  const { slug } = await params;
+  const genre = await getGenre(slug);
 
   if (!genre) {
     return {
@@ -154,12 +304,13 @@ export async function generateMetadata({
       } ${sortLabel.toLowerCase()}. Danh sách truyện ${
         genre.name_vi
       } hay nhất, cập nhật liên tục.`,
-    url: `/the-loai/${params.slug}`,
+    url: `/the-loai/${slug}`,
   });
 }
 
 export default async function GenrePage({ params, searchParams }: PageProps) {
-  const genre = await getGenre(params.slug);
+  const { slug } = await params;
+  const genre = await getGenre(slug);
 
   if (!genre) {
     notFound();
@@ -273,74 +424,21 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
         {/* Novel Grid */}
         {novels.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-              {novels.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
+            <CategoryContent novels={novels} categoryName={genre.name_vi} />
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/the-loai/${params.slug}?sort=${sort}&page=${
-                      page - 1
-                    }`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    ← Trang trước
-                  </Link>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-
-                    return (
-                      <Link
-                        key={pageNum}
-                        href={`/the-loai/${params.slug}?sort=${sort}&page=${pageNum}`}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          page === pageNum
-                            ? "bg-primary text-primary-foreground font-medium"
-                            : "border hover:bg-accent"
-                        }`}
-                      >
-                        {pageNum}
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {page < totalPages && (
-                  <Link
-                    href={`/the-loai/${params.slug}?sort=${sort}&page=${
-                      page + 1
-                    }`}
-                    className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    Trang sau →
-                  </Link>
-                )}
+              <div className="mt-8">
+                <CategoryPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  baseUrl={`/the-loai/${slug}?sort=${sort}`}
+                />
               </div>
             )}
           </>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Chưa có truyện nào trong thể loại này.
-            </p>
-          </div>
+          <CategoryEmptyState />
         )}
 
         {/* SEO Content Block */}
