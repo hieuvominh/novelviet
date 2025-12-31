@@ -1,16 +1,15 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { generateSEO } from "@/lib/utils/seo";
-import { NovelCard } from "@/components/novels/novel-card";
+import { AuthorNovelsList } from "@/components/novels/author-novels-list";
 
 // Revalidate every 15 minutes
 export const revalidate = 900;
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 async function getAuthor(slug: string) {
@@ -121,7 +120,8 @@ async function getAuthorStats(authorId: string) {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const author = await getAuthor(params.slug);
+  const { slug } = await params;
+  const author = await getAuthor(slug);
 
   if (!author) {
     return {
@@ -134,21 +134,149 @@ export async function generateMetadata({
     description:
       author.bio ||
       `Đọc tất cả truyện của tác giả ${author.name}. Danh sách truyện hay nhất, cập nhật liên tục.`,
-    url: `/tac-gia/${params.slug}`,
+    url: `/tac-gia/${slug}`,
   });
 }
 
 export default async function AuthorPage({ params }: PageProps) {
-  const author = await getAuthor(params.slug);
+  const { slug } = await params;
+  let author = await getAuthor(slug);
 
+  // TODO: Remove mock data - for testing only
   if (!author) {
-    notFound();
+    // Mock author data for testing
+    const mockAuthors: Record<string, any> = {
+      "nguyen-van-an": {
+        id: "a1111111-1111-1111-1111-111111111111",
+        name: "Nguyễn Văn An",
+        slug: "nguyen-van-an",
+        bio: "Tác giả nổi tiếng với thể loại tu tiên và huyền huyễn. Đã có 5 năm kinh nghiệm sáng tác.",
+        avatar_url: null,
+      },
+      "tran-thi-binh": {
+        id: "a2222222-2222-2222-2222-222222222222",
+        name: "Trần Thị Bình",
+        slug: "tran-thi-binh",
+        bio: "Chuyên viết truyện ngôn tình, lãng mạn. Tác phẩm được độc giả yêu thích.",
+        avatar_url: null,
+      },
+      "le-minh-chau": {
+        id: "a3333333-3333-3333-3333-333333333333",
+        name: "Lê Minh Châu",
+        slug: "le-minh-chau",
+        bio: "Tác giả trẻ với phong cách viết hiện đại, táo bạo. Chuyên đề tài đô thị và kiếm hiệp.",
+        avatar_url: null,
+      },
+    };
+
+    author = mockAuthors[slug];
+    if (!author) {
+      notFound();
+    }
   }
 
   const [novels, stats] = await Promise.all([
     getAuthorNovels(author.id),
     getAuthorStats(author.id),
   ]);
+
+  // TODO: Remove mock novels - for testing only
+  const novelTitles = [
+    "Võ Thần Thiên Hạ",
+    "Kiếm Đạo Độc Tôn",
+    "Trọng Sinh Chi Tu Tiên",
+    "Đế Ba Thiên Hạ",
+    "Thần Ấn Vương Tòa",
+    "Tuyệt Thế Vũ Thần",
+    "Vạn Cổ Thần Đế",
+    "Huyết Ma Nhân Gian",
+    "Thiên Đạo Đồ Thư Quán",
+    "Ngã Là Chí Tôn",
+    "Bất Tử Đế Tôn",
+    "Long Vương Truyền Thuyết",
+    "Đấu Phá Thương Khung",
+    "Thái Cổ Thần Vương",
+    "Võ Luyện Đỉnh Phong",
+    "Tu La Vũ Thần",
+    "Hồng Hoang Nguyên Đạo",
+    "Vô Địch Kiếm Vực",
+    "Hoàng Hôn Thần Quốc",
+    "Tiên Nghịch Tu La",
+    "Đế Tôn Trọng Sinh",
+    "Ma Đế Thiên Hạ",
+    "Thần Mộ",
+    "Đại Chúa Tể",
+    "Vĩnh Sinh",
+    "Thiên Đạo Đồ Thư Quán",
+    "Tu Tiên Truyện",
+    "Phàm Nhân Tu Tiên",
+    "Nguyên Tôn",
+    "Thần Võ Đế Tôn",
+    "Tối Cường Khí Vận",
+    "Đạo Quỷ",
+    "Bắc Đẩu Thần Quyền",
+    "Ma Thần Kỷ",
+    "Thôn Phệ Tinh Không",
+    "Vạn Giới Thần Chủ",
+    "Thiên Tài Đan Đế",
+    "Tu La Thần Đế",
+    "Hoang Thiên Đế",
+    "Vũ Đạo Cuồng Phong",
+    "Thần Ma Truyền Thuyết",
+    "Vạn Đạo Long Hoàng",
+    "Kiếm Nghịch",
+    "Võ Động Càn Khôn",
+    "Đấu La Đại Lục",
+    "Bách Luyện Thành Thần",
+    "Tuyệt Thế Đan Đế",
+    "Vô Cực Thiên Tôn",
+    "Tu Tiên Biên Niên Sử",
+  ];
+
+  const mockNovels =
+    novels.length === 0
+      ? Array.from({ length: 45 }, (_, i) => ({
+          id: `d${i + 1}`,
+          title: novelTitles[i] || `Truyện ${i + 1}`,
+          slug: `truyen-${i + 1}`,
+          description: `Một câu chuyện tu tiên hấp dẫn với nhiều tình tiết bất ngờ...`,
+          cover_url: `https://picsum.photos/seed/novel${i + 1}/400/600`,
+          status: (i % 3 === 0 ? "completed" : "ongoing") as const,
+          total_chapters: Math.floor(Math.random() * 500) + 50,
+          view_count_total: Math.floor(Math.random() * 500000) + 10000,
+          rating_average: Math.random() * 1.5 + 3.5,
+          rating_count: Math.floor(Math.random() * 3000) + 100,
+          bookmark_count: Math.floor(Math.random() * 2000) + 50,
+          last_chapter_at: new Date(
+            Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          published_at: new Date(
+            Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+        }))
+      : novels;
+
+  const mockStats =
+    stats.totalNovels === 0
+      ? {
+          totalNovels: mockNovels.length,
+          totalChapters: mockNovels.reduce(
+            (sum, n) => sum + (n.total_chapters || 0),
+            0
+          ),
+          totalViews: mockNovels.reduce(
+            (sum, n) => sum + (n.view_count_total || 0),
+            0
+          ),
+          totalBookmarks: mockNovels.reduce(
+            (sum, n) => sum + (n.bookmark_count || 0),
+            0
+          ),
+          avgRating:
+            mockNovels.reduce((sum, n) => sum + (n.rating_average || 0), 0) /
+            mockNovels.length,
+        }
+      : stats;
 
   // Schema.org Person
   const jsonLd = {
@@ -157,7 +285,7 @@ export default async function AuthorPage({ params }: PageProps) {
     name: author.name,
     description: author.bio,
     image: author.avatar_url,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL}/tac-gia/${params.slug}`,
+    url: `${process.env.NEXT_PUBLIC_SITE_URL}/tac-gia/${slug}`,
     worksFor: {
       "@type": "Organization",
       name: "TruyenDoc",
@@ -184,7 +312,7 @@ export default async function AuthorPage({ params }: PageProps) {
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+        <nav className="flex items-center gap-2 text-sm text-gray-600 mb-6">
           <Link href="/" className="hover:text-primary">
             Trang chủ
           </Link>
@@ -196,163 +324,11 @@ export default async function AuthorPage({ params }: PageProps) {
           <span className="text-foreground">{author.name}</span>
         </nav>
 
-        {/* Author Info Card */}
-        <div className="bg-card border rounded-lg p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20">
-                {author.avatar_url ? (
-                  <Image
-                    src={author.avatar_url}
-                    alt={author.name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center text-4xl font-bold text-muted-foreground">
-                    {author.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Info */}
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-3">{author.name}</h1>
-
-              {author.bio && (
-                <p className="text-muted-foreground mb-4 leading-relaxed">
-                  {author.bio}
-                </p>
-              )}
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {stats.totalNovels}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Tác phẩm</div>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {formatNumber(stats.totalChapters)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Chương</div>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {formatNumber(stats.totalViews)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Lượt xem</div>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {stats.avgRating.toFixed(1)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Đánh giá TB
-                  </div>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {formatNumber(stats.totalBookmarks)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Đánh dấu</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Author Name */}
+        <h1 className="text-2xl font-bold mb-6">{author.name}</h1>
 
         {/* Novels List */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">
-            Danh sách truyện ({novels.length})
-          </h2>
-
-          {novels.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {novels.map((novel) => (
-                <NovelCard
-                  key={novel.id}
-                  novel={{
-                    ...novel,
-                    author: { name: author.name, slug: author.slug },
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                Tác giả chưa có truyện nào.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* SEO Content Block */}
-        <div className="mt-12 prose prose-neutral dark:prose-invert max-w-none">
-          <h2>Giới Thiệu Về Tác Giả {author.name}</h2>
-          <p>
-            <strong>{author.name}</strong> là một trong những tác giả nổi tiếng
-            trên nền tảng đọc truyện của chúng tôi. Với {stats.totalNovels} tác
-            phẩm đã xuất bản và hơn {formatNumber(stats.totalChapters)} chương,
-            {author.name} đã khẳng định được tài năng sáng tác của mình trong
-            cộng đồng độc giả Việt Nam.
-          </p>
-          <p>
-            Các tác phẩm của {author.name} đã thu hút được{" "}
-            {formatNumber(stats.totalViews)} lượt xem và nhận được đánh giá
-            trung bình {stats.avgRating.toFixed(1)}/5 sao từ độc giả. Phong cách
-            viết đặc trưng và cốt truyện hấp dẫn đã giúp các truyện của tác giả
-            luôn nằm trong danh sách những tác phẩm được yêu thích nhất.
-          </p>
-
-          <h3>Tại Sao Nên Đọc Truyện Của {author.name}?</h3>
-          <ul>
-            <li>
-              <strong>Phong cách riêng biệt:</strong> {author.name} có phong
-              cách viết độc đáo, dễ đọc và cuốn hút, mang lại trải nghiệm thú vị
-              cho độc giả.
-            </li>
-            <li>
-              <strong>Cốt truyện chặt chẽ:</strong> Các tác phẩm được xây dựng
-              cẩn thận với cốt truyện logic, nhân vật sống động và nhiều tình
-              tiết bất ngờ.
-            </li>
-            <li>
-              <strong>Cập nhật đều đặn:</strong> Tác giả có lịch đăng chương ổn
-              định, đảm bảo độc giả luôn có nội dung mới để theo dõi.
-            </li>
-            <li>
-              <strong>Đa dạng thể loại:</strong> Từ huyền huyễn, tiên hiệp đến
-              ngôn tình, đô thị,
-              {author.name} chinh phục được nhiều thể loại khác nhau.
-            </li>
-          </ul>
-
-          <h3>Các Tác Phẩm Nổi Bật</h3>
-          <p>
-            Tất cả {stats.totalNovels} tác phẩm của {author.name} đều có sẵn
-            trên nền tảng của chúng tôi. Bạn có thể đọc miễn phí, không quảng
-            cáo, với giao diện thân thiện và tốc độ tải nhanh. Mỗi truyện đều
-            được cập nhật chương mới thường xuyên và có hệ thống bình luận để
-            bạn trao đổi cảm nhận với cộng đồng độc giả.
-          </p>
-          <p>
-            Hãy khám phá ngay danh sách truyện của {author.name} bên trên để tìm
-            cho mình những tác phẩm yêu thích. Đừng quên đánh dấu và đánh giá để
-            ủng hộ tác giả và giúp người khác dễ dàng tìm thấy những câu chuyện
-            hay!
-          </p>
-        </div>
+        <AuthorNovelsList novels={mockNovels} authorName={author.name} />
       </div>
     </>
   );

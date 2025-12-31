@@ -500,7 +500,7 @@ const mockNovels = [
 export default async function Home() {
   // Use mock data for testing
   const heroNovels = mockNovels.slice(0, 5); // Get 5 novels for slider
-  const hotNovelsList = mockNovels.slice(5, 12);
+  const hotNovelsList = mockNovels.slice(5, 10);
   const latestUpdated = mockNovels.slice(0, 10); // 10 items for 2x5 grid
   const trendingWeekly = mockNovels.slice(3, 9);
   const trendingTop10 = mockNovels.slice(0, 10); // Top 10 for ranking list

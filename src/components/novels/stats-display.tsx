@@ -120,32 +120,23 @@ export function StatsDisplay({ stats }: StatsDisplayProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="flex items-center gap-6 flex-wrap">
       {items.map((item, index) => (
-        <div
-          key={index}
-          className={`
-            p-4 rounded-lg border bg-card
-            ${
-              item.highlight
-                ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
-                : ""
-            }
-          `}
-        >
+        <div key={index} className="flex items-center gap-2">
           <div
-            className={`flex items-center gap-2 mb-2 ${
+            className={`${
               item.highlight
                 ? "text-yellow-600 dark:text-yellow-400"
-                : "text-muted-foreground"
+                : "text-gray-600 dark:text-gray-400"
             }`}
           >
             {item.icon}
-            <span className="text-sm font-medium">{item.label}</span>
           </div>
           <p
-            className={`text-2xl font-bold ${
-              item.highlight ? "text-yellow-600 dark:text-yellow-400" : ""
+            className={`text-base font-medium ${
+              item.highlight
+                ? "text-yellow-600 dark:text-yellow-400"
+                : "text-gray-700 dark:text-gray-300"
             }`}
           >
             {item.value}

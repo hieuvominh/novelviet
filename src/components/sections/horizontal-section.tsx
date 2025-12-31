@@ -30,7 +30,10 @@ export function HorizontalSection({
   // Calculate responsive widths
   // Mobile: show 3 items, Tablet: 5 items, Desktop: 6-8 items based on count
   const getCardWidth = () => {
-    if (count <= 5) {
+    if (count === 5) {
+      // For exactly 5 items, fit all on desktop at full width
+      return `w-[calc((100%-2*1rem)/3)] md:w-[calc((100%-4*1rem)/5)]`;
+    } else if (count <= 5) {
       // For small counts, fit all on desktop
       return `flex-1 min-w-[120px] max-w-[180px]`;
     } else if (count <= 9) {
