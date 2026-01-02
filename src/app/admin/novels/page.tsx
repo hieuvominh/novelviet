@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { toggleNovelPublish, softDeleteNovel } from "./actions";
+import toast from "@/components/ui/toast/toast";
 
 type Novel = {
   id: string;
@@ -29,6 +31,12 @@ export default function AdminNovels() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [publishedFilter, setPublishedFilter] = useState<string>("all");
+  const [updatingNovelId, setUpdatingNovelId] = useState<string | null>(null);
+  const [deletingNovelId, setDeletingNovelId] = useState<string | null>(null);
+  const [confirmUnpublishNovel, setConfirmUnpublishNovel] = useState<{
+    show: boolean;
+    novel?: Novel | null;
+  }>({ show: false, novel: null });
 
   const itemsPerPage = 20;
 
@@ -40,10 +48,15 @@ export default function AdminNovels() {
         setError(null);
         const supabase = createClient();
 
-        const { data, error: fetchError } = await supabase
-          .from("novels")
-          .select(
-            `
+        // Try to exclude soft-deleted rows; fall back if DB doesn't have the column
+        let data: any = null;
+        let fetchError: any = null;
+
+        try {
+          const res = await supabase
+            .from("novels")
+            .select(
+              `
             id,
             title,
             slug,
@@ -59,10 +72,64 @@ export default function AdminNovels() {
               name
             )
           `
-          )
-          .order("updated_at", { ascending: false });
+            )
+            .is("deleted_at", null)
+            .order("updated_at", { ascending: false });
 
-        if (fetchError) throw fetchError;
+          data = res.data;
+          fetchError = res.error;
+
+          if (fetchError) {
+            const msg = fetchError.message || JSON.stringify(fetchError);
+            // If error mentions deleted_at (column missing), fall through to fallback query
+            if (
+              !msg ||
+              (!msg.includes("deleted_at") && !msg.includes("does not exist"))
+            ) {
+              throw new Error(msg || "Failed to fetch novels");
+            }
+          }
+        } catch (err) {
+          // Fallback: query without deleted_at filter
+          console.warn(
+            "Falling back to novels query without deleted_at filter:",
+            (err as any)?.message || err
+          );
+          const res2 = await supabase
+            .from("novels")
+            .select(
+              `
+            id,
+            title,
+            slug,
+            status,
+            is_published,
+            total_chapters,
+            view_count_total,
+            rating_average,
+            updated_at,
+            last_chapter_at,
+            authors (
+              id,
+              name
+            )
+          `
+            )
+            .order("updated_at", { ascending: false });
+
+          data = res2.data;
+          fetchError = res2.error;
+        }
+
+        if (fetchError) {
+          const msg =
+            (fetchError &&
+              (fetchError.message ||
+                fetchError.error ||
+                JSON.stringify(fetchError))) ||
+            "Unknown fetch error";
+          throw new Error(msg);
+        }
 
         setNovels(data || []);
       } catch (err) {
@@ -75,6 +142,98 @@ export default function AdminNovels() {
 
     fetchNovels();
   }, []);
+
+  // Using global toast via import
+
+  // Handle publish toggle
+  const performToggleNovelPublish = async (
+    novel: Novel,
+    newPublishState: boolean
+  ) => {
+    setUpdatingNovelId(novel.id);
+    const prev = novels.map((n) => ({ ...n }));
+
+    // Optimistic UI
+    setNovels((prevList) =>
+      prevList.map((n) =>
+        n.id === novel.id ? { ...n, is_published: newPublishState } : n
+      )
+    );
+
+    try {
+      const result = await toggleNovelPublish({
+        novel_id: novel.id,
+        is_published: newPublishState,
+      });
+
+      if (!result.success) {
+        // Revert optimistic update on error
+        setNovels(prev);
+        toast.error(result.error || "Failed to update publish status");
+        return;
+      }
+
+      toast.success(
+        `Novel ${newPublishState ? "published" : "unpublished"} successfully`
+      );
+    } catch (err) {
+      // Revert optimistic update on error
+      setNovels(prev);
+      console.error("Error toggling publish status:", err);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setUpdatingNovelId(null);
+    }
+  };
+
+  const handlePublishToggle = (novel: Novel) => {
+    const newPublishState = !novel.is_published;
+
+    // If unpublishing, show modal confirmation with clear message
+    if (!newPublishState) {
+      setConfirmUnpublishNovel({ show: true, novel });
+      return;
+    }
+
+    // Publishing - proceed immediately
+    performToggleNovelPublish(novel, true);
+  };
+
+  // Handle delete (soft-delete) of novel
+  const handleDeleteNovel = async (novel: Novel) => {
+    // Prevent deleting while publish toggle is pending for this novel
+    if (updatingNovelId === novel.id) return;
+
+    const confirmed = window.confirm(
+      "Deleting a novel will also remove all its chapters. This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    const prev = novels;
+    // Optimistic removal from list
+    setNovels((prevList) => prevList.filter((n) => n.id !== novel.id));
+    setDeletingNovelId(novel.id);
+
+    try {
+      const res = await softDeleteNovel(novel.id);
+      if (!res.success) {
+        // Revert
+        setNovels(prev);
+        toast.error(res.error || "Failed to delete novel");
+        return;
+      }
+
+      toast.success("Novel deleted");
+    } catch (err) {
+      setNovels(prev);
+      console.error("Error deleting novel:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete novel"
+      );
+    } finally {
+      setDeletingNovelId(null);
+    }
+  };
 
   // Filter novels
   const filteredNovels = novels.filter((novel) => {
@@ -157,10 +316,7 @@ export default function AdminNovels() {
         <div className="bg-white rounded border border-gray-200 p-8">
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="h-12 bg-gray-200 rounded animate-pulse"
-              ></div>
+              <div key={i} className="h-12 bg-gray-200 rounded animate-pulse" />
             ))}
           </div>
         </div>
@@ -216,7 +372,8 @@ export default function AdminNovels() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by title or author..."
-            className="flex-1 min-w-[250px] px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style={{ minWidth: 250 }}
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
 
           {/* Status Filter */}
@@ -280,7 +437,7 @@ export default function AdminNovels() {
                     Status
                   </th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
-                    Pub
+                    Published
                   </th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
                     Ch
@@ -328,12 +485,26 @@ export default function AdminNovels() {
                         {novel.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      {novel.is_published ? (
-                        <span className="text-green-600 font-medium">✓</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                    <td
+                      className="px-3 py-2 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => handlePublishToggle(novel)}
+                        disabled={updatingNovelId === novel.id}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          novel.is_published ? "bg-green-600" : "bg-gray-300"
+                        }`}
+                        title={novel.is_published ? "Published" : "Unpublished"}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            novel.is_published
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </button>
                     </td>
                     <td className="px-3 py-2 text-right text-gray-900">
                       {novel.total_chapters || 0}
@@ -381,6 +552,13 @@ export default function AdminNovels() {
                         >
                           View
                         </Link>
+                        <button
+                          onClick={() => handleDeleteNovel(novel)}
+                          disabled={deletingNovelId === novel.id}
+                          className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -440,6 +618,47 @@ export default function AdminNovels() {
           </button>
         </div>
       </div>
+
+      {/* Confirm Unpublish Modal for Novel */}
+      {confirmUnpublishNovel.show && confirmUnpublishNovel.novel && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() =>
+              setConfirmUnpublishNovel({ show: false, novel: null })
+            }
+          />
+          <div className="relative bg-white rounded shadow-lg max-w-lg w-full p-6 z-10">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Unpublish novel
+            </h3>
+            <p className="text-sm text-gray-700 mt-2">
+              This novel will disappear from the public site. Chapters will
+              remain stored in the database and can be republished later.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() =>
+                  setConfirmUnpublishNovel({ show: false, novel: null })
+                }
+                className="px-4 py-2 rounded bg-white border border-gray-300 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const n = confirmUnpublishNovel.novel!;
+                  setConfirmUnpublishNovel({ show: false, novel: null });
+                  await performToggleNovelPublish(n, false);
+                }}
+                className="px-4 py-2 rounded bg-red-600 text-white text-sm"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

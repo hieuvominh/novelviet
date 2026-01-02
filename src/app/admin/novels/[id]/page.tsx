@@ -1,4 +1,4 @@
-import { NovelForm } from "@/components/admin/novel-form";
+import NovelForm from "@/components/admin/novel-form";
 
 export default async function AdminNovelEdit({
   params,

@@ -37,7 +37,7 @@ async function getNovel(slug: string) {
     .select(
       `
       *,
-      authors!inner(id, name, slug, bio),
+      authors(id, name, slug, bio),
       novel_genres!inner(
         genres!inner(id, name, slug)
       )
@@ -45,17 +45,56 @@ async function getNovel(slug: string) {
     )
     .eq("slug", slug)
     .eq("is_published", true)
+    .is("deleted_at", null)
+    .is("novel_genres.genres.deleted_at", null)
     .single();
+
+  // Fallback if DB doesn't have deleted_at on genres or joined filtering fails
+  if (error) {
+    const msg = error.message || JSON.stringify(error || "");
+    if (msg.includes("deleted_at") || msg.includes("does not exist")) {
+      const fallback = await supabase
+        .from("novels")
+        .select(
+          `
+        *,
+        authors!inner(id, name, slug, bio),
+        novel_genres!inner(
+          genres!inner(id, name, slug)
+        )
+      `
+        )
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .is("deleted_at", null)
+        .single();
+
+      if (!fallback.error && fallback.data) {
+        // use fallback data
+        const data = fallback.data;
+        const author =
+          Array.isArray(data.authors) && data.authors.length > 0
+            ? data.authors[0]
+            : data.authors;
+
+        return {
+          ...data,
+          authors: author,
+        };
+      }
+    }
+  }
 
   if (error || !data) {
     return null;
   }
 
-  // Supabase returns authors as array with !inner, extract first element
-  const author =
-    Array.isArray(data.authors) && data.authors.length > 0
+  // Supabase returns authors as array when joined; extract first element or null
+  const author = data.authors
+    ? Array.isArray(data.authors) && data.authors.length > 0
       ? data.authors[0]
-      : data.authors;
+      : data.authors
+    : null;
 
   return {
     ...data,
@@ -81,6 +120,7 @@ async function getNovelsByAuthor(authorId: string, currentNovelId: string) {
     )
     .eq("author_id", authorId)
     .eq("is_published", true)
+    .is("deleted_at", null)
     .neq("id", currentNovelId)
     .order("view_count_total", { ascending: false })
     .limit(5);
@@ -109,6 +149,7 @@ async function getChapters(novelId: string) {
     )
     .eq("novel_id", novelId)
     .eq("is_published", true)
+    .is("deleted_at", null)
     .order("chapter_number", { ascending: true });
 
   if (error) {
@@ -135,12 +176,13 @@ export async function generateMetadata({
     });
   }
 
-  const title = novel.meta_title || `${novel.title} - ${novel.authors.name}`;
+  const authorName = novel.authors?.name || "Unknown author";
+  const title = novel.meta_title || `${novel.title} - ${authorName}`;
   const description =
     novel.meta_description ||
-    `Đọc truyện ${novel.title} của ${
-      novel.authors.name
-    }. ${novel.description.slice(0, 150)}...`;
+    `Đọc truyện ${novel.title} của ${authorName}. ${(
+      novel.description || ""
+    ).slice(0, 150)}...`;
 
   return generateSEO({
     title,
@@ -408,12 +450,18 @@ export default async function NovelPage({
                     </p>
                   )}
                 <div className="flex items-center gap-3 mt-3">
-                  <Link
-                    href={`/tac-gia/${novel.authors.slug}`}
-                    className="text-base text-gray-700 dark:text-gray-300 hover:text-primary"
-                  >
-                    {novel.authors.name}
-                  </Link>
+                  {novel.authors ? (
+                    <Link
+                      href={`/tac-gia/${novel.authors.slug}`}
+                      className="text-base text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      {novel.authors.name}
+                    </Link>
+                  ) : (
+                    <span className="text-base text-gray-700">
+                      Unknown author
+                    </span>
+                  )}
                   <Badge
                     className={`${
                       statusColors[novel.status]
@@ -462,7 +510,7 @@ export default async function NovelPage({
               </div>
 
               {/* Author Bio */}
-              {novel.authors.bio && (
+              {novel.authors?.bio && (
                 <div className="p-4 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                   <h3 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
                     Về tác giả

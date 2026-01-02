@@ -34,6 +34,122 @@ body {
 }
 
 
+/* Chapter Editor Text Preview Styles */
+
+.text-preview {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #1f2937;
+}
+
+.text-preview p {
+  margin-bottom: 1.5em;
+  text-align: justify;
+  text-indent: 2em;
+}
+
+.text-preview p:first-child {
+  text-indent: 0;
+}
+
+
+/* Markdown Preview Styles */
+
+.prose {
+  color: #374151;
+  line-height: 1.75;
+}
+
+.prose h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  color: #111827;
+}
+
+.prose h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: #111827;
+}
+
+.prose h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  color: #111827;
+}
+
+.prose p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.prose code {
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: monospace;
+}
+
+.prose pre {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+}
+
+.prose li {
+  margin-bottom: 0.5em;
+}
+
+.prose a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: #2563eb;
+}
+
+
 /* Fullscreen Reading Mode */
 
 .fullscreen-reading:fullscreen {
@@ -113,4 +229,11 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* Hide site footer when admin UI is active (AdminLayout adds body.admin-mode) */
+
+body.admin-mode .site-footer {
+  display: none !important;
 }

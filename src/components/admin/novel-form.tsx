@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import CoverUploader from "@/components/admin/cover-uploader";
+import { createNovel, updateNovel } from "@/app/admin/novels/actions";
 
 interface NovelFormData {
   title: string;
@@ -18,32 +21,34 @@ interface NovelFormData {
 interface NovelFormProps {
   mode: "create" | "edit";
   novelId?: string;
+  initialAuthors?: Author[];
+  initialGenres?: Genre[];
 }
 
-// Mock authors
-const mockAuthors = [
-  { id: "1", name: "Thiên Tàm Thổ Đậu" },
-  { id: "2", name: "Ngã Ái Đại Mễ Miểu" },
-  { id: "3", name: "Cố Mạn" },
-  { id: "4", name: "Dạ Thần Cánh" },
-  { id: "5", name: "Hạ Thập Nhị" },
-];
+type Author = {
+  id: string;
+  name: string;
+};
 
-// Mock genres
-const mockGenres = [
-  { id: "1", name: "Huyền Huyễn" },
-  { id: "2", name: "Võ Hiệp" },
-  { id: "3", name: "Ngôn Tình" },
-  { id: "4", name: "Tu Tiên" },
-  { id: "5", name: "Đô Thị" },
-  { id: "6", name: "Kiếm Hiệp" },
-  { id: "7", name: "Cổ Đại" },
-  { id: "8", name: "Khoa Huyễn" },
-];
+type Genre = {
+  id: string;
+  name: string;
+};
 
-export function NovelForm({ mode, novelId }: NovelFormProps) {
+export default function NovelForm({
+  mode,
+  novelId,
+  initialAuthors,
+  initialGenres,
+}: NovelFormProps) {
   const router = useRouter();
   const [autoSlug, setAutoSlug] = useState(true);
+  const [loading, setLoading] = useState(mode === "edit");
+  const [pending, setPending] = useState(false);
+  const [authors, setAuthors] = useState<Author[]>(initialAuthors || []);
+  const [genres, setGenres] = useState<Genre[]>(initialGenres || []);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<NovelFormData>({
     title: "",
     slug: "",
@@ -55,22 +60,151 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
     coverUrl: "",
   });
 
+  // Fetch authors and genres
+  useEffect(() => {
+    // If server passed initial lists, skip client-side fetch (avoids RLS/anon issues)
+    if (initialAuthors || initialGenres) return;
+
+    async function fetchData() {
+      try {
+        const supabase = createClient();
+
+        // Fetch authors (try deleted_at filter, fallback if column missing)
+        let authorsData: any = null;
+        try {
+          const res = await supabase
+            .from("authors")
+            .select("id, name")
+            .is("deleted_at", null)
+            .order("name");
+
+          if (res.error) {
+            const msg = res.error.message || JSON.stringify(res.error || "");
+            if (
+              !msg.includes("deleted_at") &&
+              !msg.includes("does not exist")
+            ) {
+              throw new Error(res.error.message || JSON.stringify(res.error));
+            }
+            // else fall through to fallback
+          }
+
+          authorsData = res.data;
+        } catch (err) {
+          console.warn(
+            "Falling back to authors query without deleted_at filter:",
+            err?.message || err
+          );
+          const res2 = await supabase
+            .from("authors")
+            .select("id, name")
+            .order("name");
+          if (res2.error)
+            throw new Error(res2.error.message || JSON.stringify(res2.error));
+          authorsData = res2.data;
+        }
+
+        setAuthors(authorsData || []);
+
+        // Fetch genres (try deleted_at filter, fallback if column missing)
+        let genresData: any = null;
+        try {
+          const res = await supabase
+            .from("genres")
+            .select("id, name")
+            .is("deleted_at", null)
+            .order("name");
+
+          if (res.error) {
+            const msg = res.error.message || JSON.stringify(res.error || "");
+            if (
+              !msg.includes("deleted_at") &&
+              !msg.includes("does not exist")
+            ) {
+              throw new Error(res.error.message || JSON.stringify(res.error));
+            }
+          }
+
+          genresData = res.data;
+        } catch (err) {
+          console.warn(
+            "Falling back to genres query without deleted_at filter:",
+            err?.message || err
+          );
+          const res2 = await supabase
+            .from("genres")
+            .select("id, name")
+            .order("name");
+          if (res2.error)
+            throw new Error(res2.error.message || JSON.stringify(res2.error));
+          genresData = res2.data;
+        }
+
+        setGenres(genresData || []);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(err instanceof Error ? err.message : JSON.stringify(err));
+      }
+    }
+
+    fetchData();
+  }, []);
+
   // Load existing novel data if editing
   useEffect(() => {
     if (mode === "edit" && novelId) {
-      // Mock data - in real app, fetch from API
-      setFormData({
-        title: "Võ Thần Thiên Hạ",
-        slug: "vo-than-thien-ha",
-        status: "ongoing",
-        isPublished: true,
-        authorId: "1",
-        genreIds: ["1", "2"],
-        description:
-          "Một thiếu niên bình thường bước vào con đường tu luyện võ đạo, vượt qua muôn vàn thử thách để trở thành võ thần tối cao.",
-        coverUrl: "https://picsum.photos/seed/novel1/400/600",
-      });
-      setAutoSlug(false);
+      async function fetchNovel() {
+        try {
+          setLoading(true);
+          setError(null);
+          const supabase = createClient();
+
+          const { data, error: fetchError } = await supabase
+            .from("novels")
+            .select(
+              `
+              id,
+              title,
+              slug,
+              description,
+              status,
+              is_published,
+              cover_url,
+              author_id,
+              novel_genres (
+                genre_id
+              )
+            `
+            )
+            .eq("id", novelId)
+            .is("deleted_at", null)
+            .single();
+
+          if (fetchError)
+            throw new Error(fetchError.message || JSON.stringify(fetchError));
+
+          if (data) {
+            setFormData({
+              title: data.title,
+              slug: data.slug,
+              status: data.status,
+              isPublished: data.is_published,
+              authorId: data.author_id,
+              genreIds: data.novel_genres?.map((ng: any) => ng.genre_id) || [],
+              description: data.description || "",
+              coverUrl: data.cover_url || "",
+            });
+            setAutoSlug(false);
+          }
+        } catch (err) {
+          console.error("Error fetching novel:", err);
+          setError("Failed to load novel data");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      fetchNovel();
     }
   }, [mode, novelId]);
 
@@ -88,17 +222,49 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
     }
   }, [formData.title, autoSlug]);
 
-  const handleSubmit = (action: "draft" | "publish") => {
-    const payload = {
-      ...formData,
-      isPublished: action === "publish",
-    };
-    console.log(
-      `${mode === "create" ? "Creating" : "Updating"} novel:`,
-      payload
-    );
-    alert(`Novel ${action === "publish" ? "published" : "saved as draft"}!`);
-    router.push("/admin/novels");
+  const handleSubmit = async (action: "draft" | "publish") => {
+    if (pending) return;
+    setPending(true);
+    setError(null);
+
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        author_id: formData.authorId,
+        status: formData.status,
+        is_published: action === "publish",
+        cover_url: formData.coverUrl || null,
+        genre_ids: formData.genreIds,
+      } as any;
+
+      if (mode === "create") {
+        const res = await createNovel(payload);
+        if (!res.success) {
+          setError(res.error || "Failed to create novel");
+          return;
+        }
+        router.push("/admin/novels");
+      } else {
+        if (!novelId) {
+          setError("Missing novel id");
+          return;
+        }
+
+        const res = await updateNovel({ novel_id: novelId, ...payload });
+        if (!res.success) {
+          setError(res.error || "Failed to update novel");
+          return;
+        }
+
+        router.push("/admin/novels");
+      }
+    } catch (err) {
+      console.error("Error saving novel:", err);
+      setError(err instanceof Error ? err.message : JSON.stringify(err));
+    } finally {
+      setPending(false);
+    }
   };
 
   const handleCancel = () => {
@@ -115,6 +281,32 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
   };
 
   const canPublish = formData.title.trim().length > 0;
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl">
+        <div className="mb-6">
+          <div className="h-8 w-64 bg-gray-200 rounded animate-pulse mb-2"></div>
+          <div className="h-6 w-48 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+        <div className="bg-white rounded border border-gray-200 p-6">
+          <div className="h-8 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div className="h-8 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div className="h-32 w-full bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl">
+        <div className="bg-red-50 border border-red-200 rounded p-4">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl pb-24">
@@ -140,13 +332,22 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
           {mode === "edit" && novelId && (
             <Link
               href={`/admin/novels/${novelId}/chapters`}
-              className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700"
+              className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 cursor-pointer"
             >
               Manage Chapters
             </Link>
           )}
         </div>
       </div>
+
+      {typeof initialGenres !== "undefined" && initialGenres.length === 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+          <p className="text-sm text-yellow-800">
+            Genres list is empty. Are you signed in? Server-side fetch may be
+            blocked by RLS.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Basic Info Section */}
@@ -263,7 +464,7 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">-- Select an author --</option>
-              {mockAuthors.map((author) => (
+              {authors.map((author) => (
                 <option key={author.id} value={author.id}>
                   {author.name}
                 </option>
@@ -275,22 +476,36 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
         {/* Genres Section */}
         <div className="bg-white rounded border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Genres</h2>
-          <div className="flex flex-wrap gap-2">
-            {mockGenres.map((genre) => (
-              <button
-                key={genre.id}
-                type="button"
-                onClick={() => toggleGenre(genre.id)}
-                className={`px-3 py-1.5 text-sm rounded border transition-colors ${
-                  formData.genreIds.includes(genre.id)
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:border-blue-500"
-                }`}
+
+          {genres.length === 0 ? (
+            <div className="text-sm text-gray-600">
+              No genres available. Create one in{" "}
+              <a
+                className="text-blue-600 hover:underline"
+                href="/admin/genres/new"
               >
-                {genre.name}
-              </button>
-            ))}
-          </div>
+                Admin → Genres
+              </a>
+              .
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {genres.map((genre) => (
+                <button
+                  key={genre.id}
+                  type="button"
+                  onClick={() => toggleGenre(genre.id)}
+                  className={`px-3 py-1.5 text-sm rounded border transition-colors ${
+                    formData.genreIds.includes(genre.id)
+                      ? "bg-blue-600 text-white border-blue-600 cursor-pointer"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-blue-500 cursor-pointer"
+                  }`}
+                >
+                  {genre.name}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-gray-500 mt-2">
             Selected: {formData.genreIds.length} genre(s)
           </p>
@@ -322,6 +537,14 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
+              <CoverUploader
+                initialUrl={formData.coverUrl || null}
+                onUploaded={(url) =>
+                  setFormData((prev) => ({ ...prev, coverUrl: url || "" }))
+                }
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Image URL
               </label>
@@ -334,9 +557,8 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/cover.jpg"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+
+              <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
                 Preview
               </label>
               {formData.coverUrl ? (
@@ -369,14 +591,14 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => handleSubmit("draft")}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 cursor-pointer"
             >
               Save Draft
             </button>
@@ -384,7 +606,7 @@ export function NovelForm({ mode, novelId }: NovelFormProps) {
               type="button"
               onClick={() => handleSubmit("publish")}
               disabled={!canPublish}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Publish
             </button>

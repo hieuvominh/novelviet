@@ -14,7 +14,32 @@ interface PageProps {
 
 async function getAuthor(slug: string) {
   const supabase = await createClient();
+  // Try to explicitly exclude soft-deleted authors (if column exists)
+  try {
+    const res = await supabase
+      .from("authors")
+      .select("id, name, slug, bio, avatar_url")
+      .eq("slug", slug)
+      .is("deleted_at", null)
+      .single();
 
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        return null;
+      }
+      // fall through to fallback
+    }
+
+    if (res.data) return res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      return null;
+    }
+  }
+
+  // Fallback: query without deleted_at filter
   const { data, error } = await supabase
     .from("authors")
     .select("id, name, slug, bio, avatar_url")
@@ -30,10 +55,12 @@ async function getAuthor(slug: string) {
 
 async function getAuthorNovels(authorId: string) {
   const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("novels")
-    .select(
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let data: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
       `
       id,
       title,
@@ -43,58 +70,115 @@ async function getAuthorNovels(authorId: string) {
       status,
       total_chapters,
       view_count_total,
-      rating_average,
-      rating_count,
-      bookmark_count,
-      last_chapter_at,
-      published_at
-    `
-    )
-    .eq("author_id", authorId)
-    .eq("is_published", true)
-    .order("published_at", { ascending: false });
+      )
+      .eq("author_id", authorId)
+      .eq("is_published", true)
+      .is("deleted_at", null)
+      .neq("id", currentNovelId)
+      .order("view_count_total", { ascending: false })
+      .limit(5);
 
-  if (error) {
-    console.error("Error fetching author novels:", error);
-    return [];
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        console.error("Error fetching author novels:", res.error);
+        return [];
+      }
+    }
+
+    data = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      console.error("Error fetching author novels:", err);
+      return [];
+    }
   }
 
-  return data || [];
-}
+  if (!data) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        `
+      id,
+      title,
+      slug,
+      cover_url,
+      view_count_total,
+      rating_average,
+      authors!inner(name, slug)
+    `
+      )
+      .eq("author_id", authorId)
+      .eq("is_published", true)
+      .neq("id", currentNovelId)
+      .order("view_count_total", { ascending: false })
+      .limit(5);
+
+    data = res2.data;
+  }
+
+  return data.map((novel) => ({
+    ...novel,
+    author:
+      Array.isArray(novel.authors) && novel.authors.length > 0
+        ? novel.authors[0]
+        : novel.authors,
+  }));
 
 async function getAuthorStats(authorId: string) {
   const supabase = await createClient();
 
-  const { data: novels } = await supabase
-    .from("novels")
-    .select(
-      "view_count_total, total_chapters, rating_average, rating_count, bookmark_count"
-    )
-    .eq("author_id", authorId)
-    .eq("is_published", true);
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let novels: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
+        "view_count_total, total_chapters, rating_average, rating_count, bookmark_count"
+      )
+      .eq("author_id", authorId)
+      .eq("is_published", true)
+      .is("deleted_at", null);
 
-  if (!novels || novels.length === 0) {
-    return {
-      totalNovels: 0,
-      totalChapters: 0,
-      totalViews: 0,
-      totalBookmarks: 0,
-      avgRating: 0,
-    };
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        return {
+          totalNovels: 0,
+          totalChapters: 0,
+          totalViews: 0,
+          totalBookmarks: 0,
+          avgRating: 0,
+        };
+      }
+    }
+
+    novels = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      return {
+        totalNovels: 0,
+        totalChapters: 0,
+        totalViews: 0,
+        totalBookmarks: 0,
+        avgRating: 0,
+      };
+    }
   }
 
-  const totalChapters = novels.reduce(
-    (sum, n) => sum + (n.total_chapters || 0),
-    0
-  );
-  const totalViews = novels.reduce(
-    (sum, n) => sum + (n.view_count_total || 0),
-    0
-  );
-  const totalBookmarks = novels.reduce(
-    (sum, n) => sum + (n.bookmark_count || 0),
-    0
-  );
+  if (!novels) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        "view_count_total, total_chapters, rating_average, rating_count, bookmark_count"
+      )
+      .eq("author_id", authorId)
+      .eq("is_published", true);
+
+    novels = res2.data;
+  }
 
   // Calculate weighted average rating
   const totalRatingPoints = novels.reduce(

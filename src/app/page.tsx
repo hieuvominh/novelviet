@@ -14,10 +14,13 @@ export const revalidate = 300;
 async function getHotNovels(limit: number = 12) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("novels")
-    .select(
-      `
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let data: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
+        `
       id,
       title,
       slug,
@@ -32,18 +35,60 @@ async function getHotNovels(limit: number = 12) {
       last_chapter_at,
       authors!inner(name, slug)
     `
-    )
-    .eq("is_published", true)
-    .order("view_count_daily", { ascending: false })
-    .order("rating_average", { ascending: false })
-    .limit(limit);
+      )
+      .eq("is_published", true)
+      .is("deleted_at", null)
+      .order("view_count_daily", { ascending: false })
+      .order("rating_average", { ascending: false })
+      .limit(limit);
 
-  if (error) {
-    console.error("Error fetching hot novels:", error);
-    return [];
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        console.error("Error fetching hot novels:", res.error);
+        return [];
+      }
+      // fall through to fallback
+    }
+
+    data = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      console.error("Error fetching hot novels:", err);
+      return [];
+    }
   }
 
-  return data
+  if (!data) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        `
+      id,
+      title,
+      slug,
+      description,
+      cover_url,
+      status,
+      total_chapters,
+      view_count_total,
+      view_count_daily,
+      rating_average,
+      rating_count,
+      last_chapter_at,
+      authors!inner(name, slug)
+    `
+      )
+      .eq("is_published", true)
+      .order("view_count_daily", { ascending: false })
+      .order("rating_average", { ascending: false })
+      .limit(limit);
+
+    data = res2.data;
+  }
+
+  return (data || [])
     .map((novel) => ({
       ...novel,
       author:
@@ -62,10 +107,13 @@ async function getHotNovels(limit: number = 12) {
 async function getTrendingWeekly() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("novels")
-    .select(
-      `
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let data: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
+        `
       id,
       title,
       slug,
@@ -80,18 +128,59 @@ async function getTrendingWeekly() {
       last_chapter_at,
       authors!inner(name, slug)
     `
-    )
-    .eq("is_published", true)
-    .order("view_count_weekly", { ascending: false })
-    .order("rating_average", { ascending: false })
-    .limit(12);
+      )
+      .eq("is_published", true)
+      .is("deleted_at", null)
+      .order("view_count_weekly", { ascending: false })
+      .order("rating_average", { ascending: false })
+      .limit(12);
 
-  if (error) {
-    console.error("Error fetching trending novels:", error);
-    return [];
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        console.error("Error fetching trending novels:", res.error);
+        return [];
+      }
+    }
+
+    data = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      console.error("Error fetching trending novels:", err);
+      return [];
+    }
   }
 
-  return data
+  if (!data) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        `
+      id,
+      title,
+      slug,
+      description,
+      cover_url,
+      status,
+      total_chapters,
+      view_count_total,
+      view_count_weekly,
+      rating_average,
+      rating_count,
+      last_chapter_at,
+      authors!inner(name, slug)
+    `
+      )
+      .eq("is_published", true)
+      .order("view_count_weekly", { ascending: false })
+      .order("rating_average", { ascending: false })
+      .limit(12);
+
+    data = res2.data;
+  }
+
+  return (data || [])
     .map((novel) => ({
       ...novel,
       author:
@@ -110,10 +199,13 @@ async function getTrendingWeekly() {
 async function getLatestUpdated() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("novels")
-    .select(
-      `
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let data: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
+        `
       id,
       title,
       slug,
@@ -127,18 +219,58 @@ async function getLatestUpdated() {
       last_chapter_at,
       authors!inner(name, slug)
     `
-    )
-    .eq("is_published", true)
-    .not("last_chapter_at", "is", null)
-    .order("last_chapter_at", { ascending: false })
-    .limit(12);
+      )
+      .eq("is_published", true)
+      .is("deleted_at", null)
+      .not("last_chapter_at", "is", null)
+      .order("last_chapter_at", { ascending: false })
+      .limit(12);
 
-  if (error) {
-    console.error("Error fetching latest novels:", error);
-    return [];
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        console.error("Error fetching latest novels:", res.error);
+        return [];
+      }
+    }
+
+    data = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      console.error("Error fetching latest novels:", err);
+      return [];
+    }
   }
 
-  return data
+  if (!data) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        `
+      id,
+      title,
+      slug,
+      description,
+      cover_url,
+      status,
+      total_chapters,
+      view_count_total,
+      rating_average,
+      rating_count,
+      last_chapter_at,
+      authors!inner(name, slug)
+    `
+      )
+      .eq("is_published", true)
+      .not("last_chapter_at", "is", null)
+      .order("last_chapter_at", { ascending: false })
+      .limit(12);
+
+    data = res2.data;
+  }
+
+  return (data || [])
     .map((novel) => ({
       ...novel,
       author:
@@ -157,10 +289,13 @@ async function getLatestUpdated() {
 async function getCompletedNovels() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("novels")
-    .select(
-      `
+  // Try to explicitly exclude soft-deleted novels; fall back if deleted_at column missing
+  let data: any = null;
+  try {
+    const res = await supabase
+      .from("novels")
+      .select(
+        `
       id,
       title,
       slug,
@@ -174,18 +309,58 @@ async function getCompletedNovels() {
       last_chapter_at,
       authors!inner(name, slug)
     `
-    )
-    .eq("is_published", true)
-    .eq("status", "completed")
-    .order("view_count_total", { ascending: false })
-    .limit(12);
+      )
+      .eq("is_published", true)
+      .is("deleted_at", null)
+      .eq("status", "completed")
+      .order("view_count_total", { ascending: false })
+      .limit(12);
 
-  if (error) {
-    console.error("Error fetching completed novels:", error);
-    return [];
+    if (res.error) {
+      const msg = res.error.message || JSON.stringify(res.error || "");
+      if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+        console.error("Error fetching completed novels:", res.error);
+        return [];
+      }
+    }
+
+    data = res.data;
+  } catch (err) {
+    const msg = err?.message || JSON.stringify(err || "");
+    if (!msg.includes("deleted_at") && !msg.includes("does not exist")) {
+      console.error("Error fetching completed novels:", err);
+      return [];
+    }
   }
 
-  return data
+  if (!data) {
+    const res2 = await supabase
+      .from("novels")
+      .select(
+        `
+      id,
+      title,
+      slug,
+      description,
+      cover_url,
+      status,
+      total_chapters,
+      view_count_total,
+      rating_average,
+      rating_count,
+      last_chapter_at,
+      authors!inner(name, slug)
+    `
+      )
+      .eq("is_published", true)
+      .eq("status", "completed")
+      .order("view_count_total", { ascending: false })
+      .limit(12);
+
+    data = res2.data;
+  }
+
+  return (data || [])
     .map((novel) => ({
       ...novel,
       author:

@@ -58,7 +58,7 @@ export function AdminHeader() {
       {/* Right side - User menu */}
       <div className="flex items-center gap-4">
         {/* Quick Actions */}
-        <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+        <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors cursor-pointer">
           View Site
         </button>
 
@@ -66,7 +66,7 @@ export function AdminHeader() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium">
               {profile?.role === "admin" ? "A" : "E"}
@@ -96,16 +96,16 @@ export function AdminHeader() {
           {/* Dropdown Menu */}
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                 Profile
               </button>
-              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                 Settings
               </button>
               <hr className="my-1 border-gray-200" />
               <button
                 onClick={handleLogout}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
               >
                 Logout
               </button>

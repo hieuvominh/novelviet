@@ -18,7 +18,7 @@ export function AdminSidebar() {
     <aside className="w-64 bg-gray-900 text-white fixed left-0 top-0 h-screen flex flex-col border-r border-gray-800">
       {/* Logo */}
       <div className="p-4 border-b border-gray-800">
-        <Link href="/admin" className="flex items-center gap-2">
+        <Link href="/admin" className="flex items-center gap-2 cursor-pointer">
           <span className="text-xl font-bold">
             <span style={{ color: "#ffe300" }}>Novel</span>
             <span style={{ color: "#ee2737" }}>Viet</span>
@@ -36,7 +36,7 @@ export function AdminSidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded transition-colors cursor-pointer ${
                     isActive
                       ? "bg-gray-800 text-white"
                       : "text-gray-400 hover:bg-gray-800 hover:text-white"

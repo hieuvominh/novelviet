@@ -41,7 +41,7 @@ export function SiteFooter() {
   `;
 
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer className="site-footer bg-gray-900 text-gray-300">
       {/* SEO Content Section */}
       <div className="container mx-auto px-4 pt-8 pb-4">
         <SEOContent content={seoContent} />

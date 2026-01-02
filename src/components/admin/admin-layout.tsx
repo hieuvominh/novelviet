@@ -14,6 +14,22 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Add a body class to hide the public footer when on admin pages.
+    // This runs on the client and is safe because this component is a client component.
+    if (typeof document !== "undefined") {
+      if (pathname?.startsWith("/admin")) {
+        document.body.classList.add("admin-mode");
+      }
+    }
+
+    return () => {
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("admin-mode");
+      }
+    };
+  }, [pathname]);
+
+  useEffect(() => {
     // Skip auth check for login page
     if (pathname === "/admin/login") {
       setIsChecking(false);

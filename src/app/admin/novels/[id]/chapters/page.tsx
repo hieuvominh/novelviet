@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { togglePublishChapter, softDeleteChapter } from "./actions";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import toast from "@/components/ui/toast/toast";
 
 type Novel = {
   id: string;
@@ -22,6 +24,7 @@ type Chapter = {
   chapter_number: number;
   title: string;
   is_published: boolean;
+  published_at?: string | null;
   view_count: number;
   created_at: string;
 };
@@ -39,6 +42,16 @@ export default async function NovelChaptersPage({
 function NovelChaptersContent({ novelId }: { novelId: string }) {
   const [novel, setNovel] = useState<Novel | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [updatingChapterId, setUpdatingChapterId] = useState<string | null>(
+    null
+  );
+  const [deletingChapterId, setDeletingChapterId] = useState<string | null>(
+    null
+  );
+  const [confirmUnpublish, setConfirmUnpublish] = useState<{
+    show: boolean;
+    chapter?: Chapter | null;
+  }>({ show: false, chapter: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -75,20 +88,66 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
         setNovel(novelData);
 
         // Fetch chapters
-        const { data: chaptersData, error: chaptersError } = await supabase
-          .from("chapters")
-          .select(
-            `
+        // Try to exclude soft-deleted chapters; fallback if deleted_at column missing
+        let chaptersData: any = null;
+        let chaptersError: any = null;
+
+        try {
+          const res = await supabase
+            .from("chapters")
+            .select(
+              `
             id,
             chapter_number,
             title,
             is_published,
+            published_at,
             view_count,
-            created_at
+            created_at,
+            word_count
           `
-          )
-          .eq("novel_id", novelId)
-          .order("chapter_number", { ascending: true });
+            )
+            .eq("novel_id", novelId)
+            .is("deleted_at", null)
+            .order("chapter_number", { ascending: true });
+
+          chaptersData = res.data;
+          chaptersError = res.error;
+
+          if (chaptersError) {
+            const msg = chaptersError.message || JSON.stringify(chaptersError);
+            if (
+              !msg.includes("deleted_at") &&
+              !msg.includes("does not exist")
+            ) {
+              throw new Error(msg || "Failed to fetch chapters");
+            }
+          }
+        } catch (err) {
+          console.warn(
+            "Falling back to chapters query without deleted_at filter:",
+            err?.message || err
+          );
+          const res2 = await supabase
+            .from("chapters")
+            .select(
+              `
+            id,
+            chapter_number,
+            title,
+            is_published,
+            published_at,
+            view_count,
+            created_at,
+            word_count
+          `
+            )
+            .eq("novel_id", novelId)
+            .order("chapter_number", { ascending: true });
+
+          chaptersData = res2.data;
+          chaptersError = res2.error;
+        }
 
         if (chaptersError) throw chaptersError;
         setChapters(chaptersData || []);
@@ -127,6 +186,63 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
     if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
     if (views >= 1000) return `${(views / 1000).toFixed(0)}K`;
     return views.toString();
+  };
+
+  // Perform publish toggle (optimistic UI and server call)
+  const performTogglePublish = async (
+    chapter: Chapter,
+    newPublishState: boolean
+  ) => {
+    setUpdatingChapterId(chapter.id);
+    const prev = chapters.map((c) => ({ ...c }));
+    setChapters((list) =>
+      list.map((c) =>
+        c.id === chapter.id
+          ? {
+              ...c,
+              is_published: newPublishState,
+              published_at: newPublishState ? new Date().toISOString() : null,
+            }
+          : c
+      )
+    );
+
+    try {
+      const res = await togglePublishChapter({
+        chapter_id: chapter.id,
+        is_published: newPublishState,
+      });
+
+      if (!res?.success) {
+        setChapters(prev);
+        toast.error(res?.error || "Failed to update publish status");
+        return;
+      }
+
+      toast.success(
+        newPublishState ? "Chapter published" : "Chapter unpublished"
+      );
+    } catch (err) {
+      setChapters(prev);
+      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update publish status"
+      );
+    } finally {
+      setUpdatingChapterId(null);
+    }
+  };
+
+  const handleToggleChapterPublish = (chapter: Chapter) => {
+    const newState = !chapter.is_published;
+    // Only confirm when unpublishing
+    if (!newState) {
+      setConfirmUnpublish({ show: true, chapter });
+      return;
+    }
+
+    // Publishing - proceed immediately
+    performTogglePublish(chapter, true);
   };
 
   // Loading state
@@ -308,7 +424,7 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
                       !chapter.is_published ? "bg-yellow-50" : ""
                     }`}
                     onClick={() =>
-                      (window.location.href = `/admin/novels/${novelId}/chapters/${chapter.id}`)
+                      (window.location.href = `/admin/chapters/${chapter.id}`)
                     }
                   >
                     <td className="px-3 py-2">
@@ -324,12 +440,40 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
                         <span className="text-xs text-yellow-700">Draft</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      {chapter.is_published ? (
-                        <span className="text-green-600 font-medium">✓</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                    <td
+                      className="px-3 py-2 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Publish toggle */}
+                      <button
+                        title={
+                          chapter.is_published && chapter.published_at
+                            ? `Published: ${formatDate(chapter.published_at)}`
+                            : chapter.is_published
+                            ? "Published"
+                            : "Draft"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleChapterPublish(chapter);
+                        }}
+                        disabled={updatingChapterId === chapter.id}
+                        className={`inline-flex h-6 w-11 items-center rounded-full p-1 transition-colors focus:outline-none ${
+                          chapter.is_published ? "bg-green-600" : "bg-gray-300"
+                        } ${
+                          updatingChapterId === chapter.id
+                            ? "opacity-60 cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
+                      >
+                        <span
+                          className={`block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                            chapter.is_published
+                              ? "translate-x-5"
+                              : "translate-x-0"
+                          }`}
+                        />
+                      </button>
                     </td>
                     <td className="px-3 py-2 text-right text-gray-900">—</td>
                     <td className="px-3 py-2 text-right text-gray-900">
@@ -344,7 +488,7 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Link
-                          href={`/admin/novels/${novelId}/chapters/${chapter.id}`}
+                          href={`/admin/chapters/${chapter.id}`}
                           className="text-blue-600 hover:text-blue-800 font-medium"
                         >
                           Edit
@@ -356,6 +500,64 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
                         >
                           View
                         </Link>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (
+                              deletingChapterId ||
+                              updatingChapterId === chapter.id
+                            )
+                              return;
+
+                            const confirmed = window.confirm(
+                              "Delete this chapter? Readers will no longer see it."
+                            );
+                            if (!confirmed) return;
+
+                            const prev = chapters;
+                            // Optimistic remove
+                            setChapters((list) =>
+                              list.filter((c) => c.id !== chapter.id)
+                            );
+                            setDeletingChapterId(chapter.id);
+
+                            try {
+                              const res = await softDeleteChapter(chapter.id);
+                              if (!res?.success) {
+                                setChapters(prev);
+                                toast.error(
+                                  res?.error || "Failed to delete chapter"
+                                );
+                                return;
+                              }
+
+                              // success
+                              toast.success("Chapter deleted");
+                            } catch (err) {
+                              setChapters(prev);
+                              console.error(err);
+                              toast.error(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Failed to delete chapter"
+                              );
+                            } finally {
+                              setDeletingChapterId(null);
+                            }
+                          }}
+                          disabled={
+                            deletingChapterId === chapter.id ||
+                            updatingChapterId === chapter.id
+                          }
+                          className={`text-red-600 hover:text-red-800 font-medium ml-2 ${
+                            deletingChapterId === chapter.id ||
+                            updatingChapterId === chapter.id
+                              ? "opacity-60 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -365,6 +567,45 @@ function NovelChaptersContent({ novelId }: { novelId: string }) {
           </div>
         )}
       </div>
+
+      {/* Confirm Unpublish Modal */}
+      {confirmUnpublish.show && confirmUnpublish.chapter && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmUnpublish({ show: false, chapter: null })}
+          />
+          <div className="relative bg-white rounded shadow-lg max-w-md w-full p-6 z-10">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Unpublish chapter
+            </h3>
+            <p className="text-sm text-gray-700 mt-2">
+              Unpublish this chapter? Readers will no longer be able to read it.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() =>
+                  setConfirmUnpublish({ show: false, chapter: null })
+                }
+                className="px-4 py-2 rounded bg-white border border-gray-300 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const ch = confirmUnpublish.chapter!;
+                  setConfirmUnpublish({ show: false, chapter: null });
+                  // proceed with toggling to unpublished
+                  await performTogglePublish(ch, false);
+                }}
+                className="px-4 py-2 rounded bg-red-600 text-white text-sm"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Footer */}
       <div className="bg-white rounded border border-gray-200 p-4">
